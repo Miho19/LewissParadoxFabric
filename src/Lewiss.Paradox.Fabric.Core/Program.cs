@@ -160,7 +160,7 @@ class Program
         using (var workbook = new XLWorkbook())
         {
 
-            var worksheet = workbook.Worksheets.Add("fabric");
+            var worksheet = workbook.Worksheets.Add("A");
 
             WriteWorksheetHeader(worksheet, header);
             WriteWorksheetData(worksheet, data);
