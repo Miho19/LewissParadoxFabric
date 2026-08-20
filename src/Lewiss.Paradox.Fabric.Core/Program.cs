@@ -209,7 +209,8 @@ class Program
 
     private async static Task WriteWorkbookToSharePoint(string fileBase64)
     {
-        var sharepointFolder = "01VFVMOAG77RPCSPXOVVEKVOWOFTM6KWOT";
+        var sharepointFolder = "01VFVMOAB5NYKNEK4WOJELK3E4XZK5ZKFJ";
+        var fileName = "FABRICS.xlsx";
 
         using (HttpClient client = new HttpClient())
         {
@@ -218,7 +219,7 @@ class Program
                 var payload = new
                 {
                     action = "uploadAndNotify",
-                    filename = "fabric.xlsx",
+                    filename = fileName,
                     fileBase64 = fileBase64,
                     folderId = sharepointFolder,
                     custName = "",
