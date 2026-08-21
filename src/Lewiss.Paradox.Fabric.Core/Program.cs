@@ -2,6 +2,7 @@
 
 using System.Data.Odbc;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ClosedXML;
 using ClosedXML.Excel;
 
@@ -9,29 +10,29 @@ class Program
 {
     async static Task Main(string[] args)
     {
-        if (!ArchitectureCheck()) System.Environment.Exit(1);
-
-        var connectionString = @"Driver={Microsoft Paradox Driver (*.db )};DriverID=538;Fil=Paradox 4.X;DefaultDir=K:\Data;Dbq=K:\Data\CUTS\LOOKUP;CollatingSequence=International;";
-        var tableName = "MPFabric";
-
-        var headerList = ReadTableHeader(connectionString, tableName);
-        if (headerList.Count == 0)
+        try
         {
-            System.Console.WriteLine("Failed to retrieve table header");
-            Environment.Exit(1);
+            if (!ArchitectureCheck()) System.Environment.Exit(1);
+
+            var connectionString = @"Driver={Microsoft Paradox Driver (*.db )};DriverID=538;Fil=Paradox 4.X;DefaultDir=K:\Data;Dbq=K:\Data\CUTS\LOOKUP;CollatingSequence=International;";
+            var tableName = "MPFabric";
+
+            var headerList = ReadTableHeader(connectionString, tableName);
+
+            var fabricData = GetValues(connectionString, tableName);
+
+            var filePath = @"K:\Data\Process\Development\fabric\fabric.xlsx";
+            var fileBase64 = GetExcelFileAsBase64(filePath, headerList, fabricData);
+
+            await WriteWorkbookToSharePoint(fileBase64);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed: {ex.Message}");
         }
 
-        var fabricData = GetValues(connectionString, tableName);
-        if (fabricData.Count == 0)
-        {
-            System.Console.WriteLine("Failed to retrieve fabric data");
-            Environment.Exit(1);
-        }
 
-        var filePath = @"K:\Data\Process\Development\fabric\fabric.xlsx";
-        var fileBase64 = GetExcelFileAsBase64(filePath, headerList, fabricData);
-
-        await WriteWorkbookToSharePoint(fileBase64);
 
     }
 
@@ -56,26 +57,28 @@ class Program
             try
             {
 
+                System.Console.WriteLine("Reading table header");
+
                 connection.Open();
-                var line = 0;
+
                 List<string> output = [];
 
 
                 using (OdbcDataReader reader = command.ExecuteReader())
                 {
-                    while (reader.Read())
+
+                    if (!reader.Read())
                     {
-
-
-                        for (var i = 0; i < reader.FieldCount; i++)
-                        {
-                            output.Add(reader.GetName(i));
-                        }
-
-                        line += 1;
-
-                        if (line > 1) break;
+                        System.Console.WriteLine("Failed to read first row");
                     }
+
+                    for (var i = 0; i < reader.FieldCount; i++)
+                    {
+                        output.Add(reader.GetName(i));
+                    }
+
+
+
                 }
 
                 return output;
@@ -84,12 +87,17 @@ class Program
             catch (OdbcException ex)
             {
                 System.Console.WriteLine($"Odbc: ${ex.Message}");
+                throw;
+
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"General: {ex.Message}");
+                throw;
+
+
             }
-            return [];
+
         }
 
 
@@ -106,6 +114,8 @@ class Program
         {
             try
             {
+
+                System.Console.WriteLine("Reading fabric values");
 
                 connection.Open();
 
@@ -139,10 +149,15 @@ class Program
             catch (OdbcException ex)
             {
                 System.Console.WriteLine($"Odbc: ${ex.Message}");
+                throw;
+
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"General: {ex.Message}");
+                throw;
+
+
             }
 
 
@@ -160,21 +175,33 @@ class Program
         using (var workbook = new XLWorkbook())
         {
 
-            var worksheet = workbook.Worksheets.Add("A");
-
-            WriteWorksheetHeader(worksheet, header);
-            WriteWorksheetData(worksheet, data);
-
-
-
-            using (var memoryStream = new MemoryStream())
+            try
             {
-                System.Console.WriteLine("Creating memory stream");
-                workbook.SaveAs(memoryStream);
-                return Convert.ToBase64String(memoryStream.ToArray());
+                System.Console.WriteLine("Saving workbook");
+                var worksheet = workbook.Worksheets.Add("A");
+
+                WriteWorksheetHeader(worksheet, header);
+                WriteWorksheetData(worksheet, data);
+
+
+
+                using (var memoryStream = new MemoryStream())
+                {
+                    workbook.SaveAs(memoryStream);
+                    return Convert.ToBase64String(memoryStream.ToArray());
+                }
+
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"General: {ex.Message}");
+                throw;
+
             }
 
         }
+
+
     }
 
 
@@ -216,6 +243,7 @@ class Program
         {
             try
             {
+                System.Console.WriteLine("Saving to Sharepoint");
                 var payload = new
                 {
                     action = "uploadAndNotify",
@@ -231,26 +259,38 @@ class Program
                     photos = ""
                 };
 
-                System.Console.WriteLine("Uploading to sharepoint");
 
                 HttpResponseMessage response = await client.PostAsJsonAsync("https://lewiss-measure-pro.netlify.app/.netlify/functions/graph", payload);
                 response.EnsureSuccessStatusCode();
 
                 string responseBody = await response.Content.ReadAsStringAsync();
-
-                System.Console.WriteLine(responseBody);
-
+                JSONOutput(responseBody);
             }
             catch (HttpRequestException ex)
             {
                 System.Console.WriteLine($"Http: {ex.Message}");
+                throw;
+
+
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"General: {ex.Message}");
+                throw;
+
             }
         }
 
 
+    }
+
+    private static void JSONOutput(string json)
+    {
+        using (var jsonDoc = JsonDocument.Parse(json))
+        {
+            var options = new JsonSerializerOptions() { WriteIndented = true };
+            var output = JsonSerializer.Serialize(jsonDoc, options);
+            System.Console.WriteLine(output);
+        }
     }
 }
