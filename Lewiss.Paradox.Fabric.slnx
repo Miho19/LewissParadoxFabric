@@ -1,2 +1,5 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lewiss.Paradox.Fabric.Core/Lewiss.Paradox.Fabric.Core.csproj" />
+  </Folder>
 </Solution>

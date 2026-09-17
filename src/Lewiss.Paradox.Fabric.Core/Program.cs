@@ -6,6 +6,8 @@ using System.Text.Json;
 using ClosedXML;
 using ClosedXML.Excel;
 
+// dotnet publish -c Release --runtime win-x86 --self-contained true -p:PublishSingleFile=true
+
 class Program
 {
     async static Task Main(string[] args)
@@ -239,7 +241,8 @@ class Program
         var sharepointFolder = "01VFVMOAB5NYKNEK4WOJELK3E4XZK5ZKFJ";
         var fileName = "FABRICS.xlsx";
 
-        using (HttpClient client = new HttpClient())
+        using (HttpClientHandler handler = new HttpClientHandler() { UseCookies = false })
+        using (HttpClient client = new HttpClient(handler))
         {
             try
             {
@@ -259,8 +262,18 @@ class Program
                     photos = ""
                 };
 
+                var url = "https://lewiss-measure-pro.netlify.app/.netlify/functions/graph";
 
-                HttpResponseMessage response = await client.PostAsJsonAsync("https://lewiss-measure-pro.netlify.app/.netlify/functions/graph", payload);
+
+                var cookie = "a8f9590f-d26e-407d-bce1-39705a940a4d=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJoYXNoIjoiWHg1NmVkMXdCQmJ2MHUtR0NxVUtSQWc0ZlNGZXVVZ0RETV9nRDBsSWFhZz0iLCJzaXRlX2lkIjoiYThmOTU5MGYtZDI2ZS00MDdkLWJjZTEtMzk3MDVhOTQwYTRkIn0.EFQyaYl9keL8wbuLGUf2mXG6EBQsu2fUCyQ9o2lrT8Y";
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+
+                request.Headers.TryAddWithoutValidation("Cookie", cookie);
+                request.Content = JsonContent.Create(payload);
+
+
+                HttpResponseMessage response = await client.SendAsync(request);
+
                 response.EnsureSuccessStatusCode();
 
                 string responseBody = await response.Content.ReadAsStringAsync();
