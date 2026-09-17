@@ -76,7 +76,7 @@ class Program
 
                     for (var i = 0; i < reader.FieldCount; i++)
                     {
-                        output.Add(reader.GetName(i));
+                        output.Add(reader.GetName(i).Replace("#", "."));
                     }
 
 
@@ -103,6 +103,15 @@ class Program
         }
 
 
+    }
+
+
+    private static void PrintList(List<string> list)
+    {
+        list.ForEach(item =>
+        {
+            System.Console.WriteLine(item);
+        });
     }
 
     private static List<List<string>> GetValues(string connectionString, string tableName)
